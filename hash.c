@@ -2843,9 +2843,15 @@ clear_i(VALUE key, VALUE value, VALUE dummy)
 
 /*
  *  call-seq:
- *    clear -> self
+ *    clear(preserve_capacity: false) -> self
  *
  *  Removes all entries from +self+; returns emptied +self+.
+ *
+ *  By default, clearing will reset capacity. To keep the current capacity
+ *  (useful when the hash will be refilled to a similar size),
+ *  use +preserve_capacity: true+:
+ *
+ *    h.clear(preserve_capacity: true) #=> {}
  *
  *  Related: see {Methods for Deleting}[rdoc-ref:Hash@Methods+for+Deleting].
  */
@@ -2864,6 +2870,36 @@ rb_hash_clear(VALUE hash)
     else {
         st_clear(RHASH_ST_TABLE(hash));
         compact_after_delete(hash);
+    }
+
+    return hash;
+}
+
+static VALUE
+rb_hash_clear_m(int argc, VALUE *argv, VALUE hash)
+{
+    ID id_preserve_capacity;
+    VALUE opts, preserve_capacity;
+
+    rb_scan_args(argc, argv, "0:", &opts);
+    if (NIL_P(opts)) return rb_hash_clear(hash);
+
+    CONST_ID(id_preserve_capacity, "preserve_capacity");
+    rb_get_kwargs(opts, &id_preserve_capacity, 0, 1, &preserve_capacity);
+    if (UNDEF_P(preserve_capacity) || !RTEST(preserve_capacity)) {
+        return rb_hash_clear(hash);
+    }
+
+    rb_hash_modify_check(hash);
+
+    if (hash_iterating_p(hash)) {
+        rb_hash_foreach(hash, clear_i, 0);
+    }
+    else if (RHASH_AR_TABLE_P(hash)) {
+        ar_clear(hash);
+    }
+    else {
+        st_clear(RHASH_ST_TABLE(hash));
     }
 
     return hash;
@@ -7406,7 +7442,7 @@ Init_Hash(void)
     rb_define_method(rb_cHash, "reject!", rb_hash_reject_bang, 0);
     rb_define_method(rb_cHash, "slice", rb_hash_slice, -1);
     rb_define_method(rb_cHash, "except", rb_hash_except, -1);
-    rb_define_method(rb_cHash, "clear", rb_hash_clear, 0);
+    rb_define_method(rb_cHash, "clear", rb_hash_clear_m, -1);
     rb_define_method(rb_cHash, "invert", rb_hash_invert, 0);
     rb_define_method(rb_cHash, "update", rb_hash_update, -1);
     rb_define_method(rb_cHash, "replace", rb_hash_replace, 1);

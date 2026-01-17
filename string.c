@@ -6559,13 +6559,19 @@ rb_str_replace(VALUE str, VALUE str2)
 
 /*
  *  call-seq:
- *    clear -> self
+ *    clear(preserve_capacity: false) -> self
  *
  *  Removes the contents of +self+:
  *
  *    s = 'foo'
  *    s.clear # => ""
  *    s       # => ""
+ *
+ *  By default, clearing will reset capacity. To keep the current capacity
+ *  (useful when the string will be refilled to a similar size),
+ *  use +preserve_capacity: true+:
+ *
+ *    s.clear(preserve_capacity: true) # => ""
  *
  *  Related: see {Modifying}[rdoc-ref:String@Modifying].
  */
@@ -6575,6 +6581,31 @@ rb_str_clear(VALUE str)
 {
     str_discard(str);
     STR_SET_EMBED(str);
+    STR_SET_LEN(str, 0);
+    RSTRING_PTR(str)[0] = 0;
+    if (rb_enc_asciicompat(STR_ENC_GET(str)))
+        ENC_CODERANGE_SET(str, ENC_CODERANGE_7BIT);
+    else
+        ENC_CODERANGE_SET(str, ENC_CODERANGE_VALID);
+    return str;
+}
+
+static VALUE
+rb_str_clear_m(int argc, VALUE *argv, VALUE str)
+{
+    ID id_preserve_capacity;
+    VALUE opts, preserve_capacity;
+
+    rb_scan_args(argc, argv, "0:", &opts);
+    if (NIL_P(opts)) return rb_str_clear(str);
+
+    CONST_ID(id_preserve_capacity, "preserve_capacity");
+    rb_get_kwargs(opts, &id_preserve_capacity, 0, 1, &preserve_capacity);
+    if (UNDEF_P(preserve_capacity) || !RTEST(preserve_capacity)) {
+        return rb_str_clear(str);
+    }
+
+    str_modifiable(str);
     STR_SET_LEN(str, 0);
     RSTRING_PTR(str)[0] = 0;
     if (rb_enc_asciicompat(STR_ENC_GET(str)))
@@ -12824,7 +12855,7 @@ Init_String(void)
     rb_define_method(rb_cString, "byteindex", rb_str_byteindex_m, -1);
     rb_define_method(rb_cString, "rindex", rb_str_rindex_m, -1);
     rb_define_method(rb_cString, "byterindex", rb_str_byterindex_m, -1);
-    rb_define_method(rb_cString, "clear", rb_str_clear, 0);
+    rb_define_method(rb_cString, "clear", rb_str_clear_m, -1);
     rb_define_method(rb_cString, "chr", rb_str_chr, 0);
     rb_define_method(rb_cString, "getbyte", rb_str_getbyte, 1);
     rb_define_method(rb_cString, "setbyte", rb_str_setbyte, 2);

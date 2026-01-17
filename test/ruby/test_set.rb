@@ -125,6 +125,41 @@ class TC_Set < Test::Unit::TestCase
     assert_equal(true, set.empty?)
   end
 
+  def test_clear_preserve_capacity
+    require 'objspace'
+
+    # With preserve_capacity: true, memsize should stay large
+    set = Set.new(1..1000)
+    big = ObjectSpace.memsize_of(set)
+    set.clear(preserve_capacity: true)
+    assert_equal(true, set.empty?)
+    assert_operator ObjectSpace.memsize_of(set), :>=, big
+
+    # Without preserve_capacity, memsize should shrink
+    set = Set.new(1..1000)
+    big = ObjectSpace.memsize_of(set)
+    set.clear
+    assert_equal(true, set.empty?)
+    assert_operator ObjectSpace.memsize_of(set), :<, big
+
+    # preserve_capacity: false should behave like default
+    set = Set.new(1..1000)
+    big = ObjectSpace.memsize_of(set)
+    set.clear(preserve_capacity: false)
+    assert_equal(true, set.empty?)
+    assert_operator ObjectSpace.memsize_of(set), :<, big
+
+    # unknown keyword should raise ArgumentError
+    assert_raise_with_message(ArgumentError, /unknown keyword/) do
+      Set[1, 2, 3].clear(unknown: true)
+    end
+
+    # positional argument should raise ArgumentError
+    assert_raise(ArgumentError) do
+      Set[1, 2, 3].clear(true)
+    end
+  end
+
   def test_replace
     set = Set[1,2]
     ret = set.replace('a'..'c')

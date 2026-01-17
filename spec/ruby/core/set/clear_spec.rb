@@ -13,4 +13,17 @@ describe "Set#clear" do
   it "returns self" do
     @set.clear.should equal(@set)
   end
+
+  it "does not accept positional arguments" do
+    -> { @set.clear(true) }.should raise_error(ArgumentError)
+  end
+
+  it "accepts preserve_capacity keyword argument" do
+    @set.clear(preserve_capacity: true).should equal(@set)
+    @set.should be_empty
+  end
+
+  it "raises ArgumentError for unknown keyword arguments" do
+    -> { @set.clear(unknown: true) }.should raise_error(ArgumentError, /unknown keyword/)
+  end
 end

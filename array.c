@@ -4835,12 +4835,18 @@ rb_ary_replace(VALUE copy, VALUE orig)
 
 /*
  *  call-seq:
- *    clear -> self
+ *    clear(preserve_capacity: false) -> self
  *
  *  Removes all elements from +self+; returns +self+:
  *
  *    a = [:foo, 'bar', 2]
  *    a.clear # => []
+ *
+ *  By default, clearing will reset capacity. To keep the current capacity
+ *  (useful when the array will be refilled to a similar size),
+ *  use +preserve_capacity: true+:
+ *
+ *    a.clear(preserve_capacity: true) # => []
  *
  *  Related: see {Methods for Deleting}[rdoc-ref:Array@Methods+for+Deleting].
  */
@@ -4859,6 +4865,34 @@ rb_ary_clear(VALUE ary)
         if (ARY_DEFAULT_SIZE * 2 < ARY_CAPA(ary)) {
             ary_resize_capa(ary, ARY_DEFAULT_SIZE * 2);
         }
+    }
+    ary_verify(ary);
+    return ary;
+}
+
+static VALUE
+rb_ary_clear_m(int argc, VALUE *argv, VALUE ary)
+{
+    ID id_preserve_capacity;
+    VALUE opts, preserve_capacity;
+
+    rb_scan_args(argc, argv, "0:", &opts);
+    if (NIL_P(opts)) return rb_ary_clear(ary);
+
+    CONST_ID(id_preserve_capacity, "preserve_capacity");
+    rb_get_kwargs(opts, &id_preserve_capacity, 0, 1, &preserve_capacity);
+    if (UNDEF_P(preserve_capacity) || !RTEST(preserve_capacity)) {
+        return rb_ary_clear(ary);
+    }
+
+    rb_ary_modify_check(ary);
+    if (ARY_SHARED_P(ary)) {
+        rb_ary_unshare(ary);
+        FL_SET_EMBED(ary);
+        ARY_SET_EMBED_LEN(ary, 0);
+    }
+    else {
+        ARY_SET_LEN(ary, 0);
     }
     ary_verify(ary);
     return ary;
@@ -8933,7 +8967,7 @@ Init_Array(void)
     rb_define_method(rb_cArray, "zip", rb_ary_zip, -1);
     rb_define_method(rb_cArray, "transpose", rb_ary_transpose, 0);
     rb_define_method(rb_cArray, "replace", rb_ary_replace, 1);
-    rb_define_method(rb_cArray, "clear", rb_ary_clear, 0);
+    rb_define_method(rb_cArray, "clear", rb_ary_clear_m, -1);
     rb_define_method(rb_cArray, "fill", rb_ary_fill, -1);
     rb_define_method(rb_cArray, "include?", rb_ary_includes, 1);
     rb_define_method(rb_cArray, "<=>", rb_ary_cmp, 1);

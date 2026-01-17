@@ -975,13 +975,19 @@ set_clear_i(st_data_t key, st_data_t dummy)
 
 /*
  *  call-seq:
- *    clear -> self
+ *    clear(preserve_capacity: false) -> self
  *
  *  Removes all elements and returns self.
  *
  *    set = Set[1, 'c', :s]             #=> Set[1, "c", :s]
  *    set.clear                         #=> Set[]
  *    set                               #=> Set[]
+ *
+ *  By default, clearing will reset capacity. To keep the current capacity
+ *  (useful when the set will be refilled to a similar size),
+ *  use +preserve_capacity: true+:
+ *
+ *    set.clear(preserve_capacity: true) #=> Set[]
  */
 static VALUE
 set_i_clear(VALUE set)
@@ -994,6 +1000,32 @@ set_i_clear(VALUE set)
     else {
         set_table_clear(RSET_TABLE(set));
         set_compact_after_delete(set);
+    }
+    return set;
+}
+
+static VALUE
+set_i_clear_m(int argc, VALUE *argv, VALUE set)
+{
+    ID id_preserve_capacity;
+    VALUE opts, preserve_capacity;
+
+    rb_scan_args(argc, argv, "0:", &opts);
+    if (NIL_P(opts)) return set_i_clear(set);
+
+    CONST_ID(id_preserve_capacity, "preserve_capacity");
+    rb_get_kwargs(opts, &id_preserve_capacity, 0, 1, &preserve_capacity);
+    if (UNDEF_P(preserve_capacity) || !RTEST(preserve_capacity)) {
+        return set_i_clear(set);
+    }
+
+    rb_check_frozen(set);
+    if (RSET_SIZE(set) == 0) return set;
+    if (set_iterating_p(set)) {
+        set_iter(set, set_clear_i, 0);
+    }
+    else {
+        set_table_clear(RSET_TABLE(set));
     }
     return set;
 }
@@ -2237,7 +2269,7 @@ Init_Set(void)
     rb_define_alias(rb_cSet, "<<", "add");
     rb_define_method(rb_cSet, "add?", set_i_add_p, 1);
     rb_define_method(rb_cSet, "classify", set_i_classify, 0);
-    rb_define_method(rb_cSet, "clear", set_i_clear, 0);
+    rb_define_method(rb_cSet, "clear", set_i_clear_m, -1);
     rb_define_method(rb_cSet, "collect!", set_i_collect, 0);
     rb_define_alias(rb_cSet, "map!", "collect!");
     rb_define_method(rb_cSet, "compare_by_identity", set_i_compare_by_identity, 0);

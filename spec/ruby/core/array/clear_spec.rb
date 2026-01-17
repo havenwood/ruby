@@ -20,8 +20,18 @@ describe "Array#clear" do
     a.size.should == 0
   end
 
-  it "does not accept any arguments" do
+  it "does not accept positional arguments" do
     -> { [1].clear(true) }.should raise_error(ArgumentError)
+  end
+
+  it "accepts preserve_capacity keyword argument" do
+    a = [1, 2, 3]
+    a.clear(preserve_capacity: true).should equal(a)
+    a.should == []
+  end
+
+  it "raises ArgumentError for unknown keyword arguments" do
+    -> { [1].clear(unknown: true) }.should raise_error(ArgumentError, /unknown keyword/)
   end
 
   it "raises a FrozenError on a frozen array" do

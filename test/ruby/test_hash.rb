@@ -1199,6 +1199,41 @@ class TestHash < Test::Unit::TestCase
     assert_equal({}, h)
   end
 
+  def test_clear_preserve_capacity
+    require 'objspace'
+
+    # With preserve_capacity: true, memsize should stay large
+    h = @cls[(1..1000).map { |index| [index, index] }.to_h]
+    big = ObjectSpace.memsize_of(h)
+    h.clear(preserve_capacity: true)
+    assert_equal(@cls[], h)
+    assert_operator ObjectSpace.memsize_of(h), :>=, big
+
+    # Without preserve_capacity, memsize should shrink
+    h = @cls[(1..1000).map { |index| [index, index] }.to_h]
+    big = ObjectSpace.memsize_of(h)
+    h.clear
+    assert_equal(@cls[], h)
+    assert_operator ObjectSpace.memsize_of(h), :<, big
+
+    # preserve_capacity: false should behave like default
+    h = @cls[(1..1000).map { |index| [index, index] }.to_h]
+    big = ObjectSpace.memsize_of(h)
+    h.clear(preserve_capacity: false)
+    assert_equal(@cls[], h)
+    assert_operator ObjectSpace.memsize_of(h), :<, big
+
+    # unknown keyword should raise ArgumentError
+    assert_raise_with_message(ArgumentError, /unknown keyword/) do
+      @cls[1=>2, 3=>4].clear(unknown: true)
+    end
+
+    # positional argument should raise ArgumentError
+    assert_raise(ArgumentError) do
+      @cls[1=>2, 3=>4].clear(true)
+    end
+  end
+
   def test_replace2
     h1 = @cls.new { :foo }
     h2 = @cls.new

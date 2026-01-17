@@ -35,4 +35,18 @@ describe "String#clear" do
     -> { @s.clear        }.should raise_error(FrozenError)
     -> { "".freeze.clear }.should raise_error(FrozenError)
   end
+
+  it "does not accept positional arguments" do
+    -> { @s.clear(true) }.should raise_error(ArgumentError)
+  end
+
+  it "accepts preserve_capacity keyword argument" do
+    s = "foo" * 100
+    s.clear(preserve_capacity: true).should equal(s)
+    s.should == ""
+  end
+
+  it "raises ArgumentError for unknown keyword arguments" do
+    -> { @s.clear(unknown: true) }.should raise_error(ArgumentError, /unknown keyword/)
+  end
 end

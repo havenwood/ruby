@@ -2947,6 +2947,48 @@ CODE
     assert_equal("", S("\u3042".encode("ISO-2022-JP")).clear)
   end
 
+  def test_clear_preserve_capacity
+    require 'objspace'
+
+    # Use String.new with capacity to ensure the string owns its buffer
+    make_large_string = -> {
+      s = String.new(capacity: 10000)
+      s << "x" * 10000
+      s
+    }
+
+    # With preserve_capacity: true, memsize should stay large
+    s = make_large_string.call
+    big = ObjectSpace.memsize_of(s)
+    s.clear(preserve_capacity: true)
+    assert_equal(S(""), s)
+    assert_operator ObjectSpace.memsize_of(s), :>=, big
+
+    # Without preserve_capacity, memsize should shrink
+    s = make_large_string.call
+    big = ObjectSpace.memsize_of(s)
+    s.clear
+    assert_equal(S(""), s)
+    assert_operator ObjectSpace.memsize_of(s), :<, big
+
+    # preserve_capacity: false should behave like default
+    s = make_large_string.call
+    big = ObjectSpace.memsize_of(s)
+    s.clear(preserve_capacity: false)
+    assert_equal(S(""), s)
+    assert_operator ObjectSpace.memsize_of(s), :<, big
+
+    # unknown keyword should raise ArgumentError
+    assert_raise_with_message(ArgumentError, /unknown keyword/) do
+      S("foo").clear(unknown: true)
+    end
+
+    # positional argument should raise ArgumentError
+    assert_raise(ArgumentError) do
+      S("foo").clear(true)
+    end
+  end
+
   def test_try_convert
     assert_equal(nil, @cls.try_convert(1))
     assert_equal("foo", @cls.try_convert("foo"))

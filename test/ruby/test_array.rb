@@ -567,6 +567,41 @@ class TestArray < Test::Unit::TestCase
     assert_equal(a.__id__, b.__id__)
   end
 
+  def test_clear_preserve_capacity
+    require 'objspace'
+
+    # With preserve_capacity: true, memsize should stay large
+    a = @cls[*(1..1000)]
+    big = ObjectSpace.memsize_of(a)
+    a.clear(preserve_capacity: true)
+    assert_equal(@cls[], a)
+    assert_operator ObjectSpace.memsize_of(a), :>=, big
+
+    # Without preserve_capacity, memsize should shrink
+    a = @cls[*(1..1000)]
+    big = ObjectSpace.memsize_of(a)
+    a.clear
+    assert_equal(@cls[], a)
+    assert_operator ObjectSpace.memsize_of(a), :<, big
+
+    # preserve_capacity: false should behave like default
+    a = @cls[*(1..1000)]
+    big = ObjectSpace.memsize_of(a)
+    a.clear(preserve_capacity: false)
+    assert_equal(@cls[], a)
+    assert_operator ObjectSpace.memsize_of(a), :<, big
+
+    # unknown keyword should raise ArgumentError
+    assert_raise_with_message(ArgumentError, /unknown keyword/) do
+      @cls[1, 2, 3].clear(unknown: true)
+    end
+
+    # positional argument should raise ArgumentError
+    assert_raise(ArgumentError) do
+      @cls[1, 2, 3].clear(true)
+    end
+  end
+
   def test_clone
     for frozen in [ false, true ]
       a = @cls[*(0..99).to_a]
